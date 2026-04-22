@@ -4,6 +4,14 @@ A transpiler that converts S-expression (S-exp) ASTs into PHP source code. Imple
 
 S-expression (S-exp) で記述された AST を PHP ソースコードに変換するトランスパイラです。Racket で実装されています。
 
+
+## Philosophy (or Why This Exists)
+
+While I respect PHP as a runtime environment, I had grown weary of writing its syntax—particularly the ubiquitous $ and $this->—by hand every day. This is an attempt to isolate the intelligence within S-expressions and redefine PHP as “assembler to be generated.”
+
+私はPHPという実行環境を尊重しているが、その構文（特に行き渡った $ や $this->）を毎日手書きすることに疲弊していた。これは、知性を S-expression に隔離し、PHPを『生成されるべきアセンブラ』として再定義するための試みである。
+
+
 ## Example / 変換例
 
 **Input** (`sexp/App/Http/Controllers/UserController.sexp`):
