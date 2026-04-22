@@ -5,7 +5,7 @@ A transpiler that converts S-expression (S-exp) ASTs into PHP source code. Imple
 S-expression (S-exp) で記述された AST を PHP ソースコードに変換するトランスパイラです。Racket で実装されています。
 
 
-## Philosophy (or Why This Exists)
+## Philosophy (or Why This Exists) / 哲学
 
 While I respect PHP as a runtime environment, I had grown weary of writing its syntax—particularly the ubiquitous $ and $this->—by hand every day. This is an attempt to isolate the intelligence within S-expressions and redefine PHP as “assembler to be generated.”
 
