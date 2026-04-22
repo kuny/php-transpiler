@@ -1,0 +1,18 @@
+# build と sexp の中身を無視
+build/*
+sexp/*
+
+# ただしディレクトリ維持用ファイルは除外しない
+!build/.gitkeep
+!sexp/.gitkeep
+
+# composer
+/vendor/
+
+# mac
+.DS_Store
+
+# logs / temp
+*.log
+
+.php-cs-fixer.cache

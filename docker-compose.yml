@@ -1,0 +1,29 @@
+services:
+  transpiler:
+    platform: linux/arm64
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: >
+      sh -lc "
+        raco pkg install --auto --link --no-setup /app/php-transpiler || true &&
+        raco setup --no-docs --pkgs php-transpiler &&
+        racket src/main.rkt
+      "
+
+  composer:
+    platform: linux/arm64
+    image: composer:2
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - composer_cache:/tmp/composer
+    environment:
+      COMPOSER_CACHE_DIR: /tmp/composer
+    entrypoint: ["composer"]
+
+volumes:
+  composer_cache:
