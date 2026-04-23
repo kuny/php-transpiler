@@ -14,7 +14,7 @@ While I respect PHP as a runtime environment, I had grown weary of writing its s
 
 ## Example / 変換例
 
-**Input** (`sexp/App/Http/Controllers/UserController.sexp`):
+**Input** (`UserController.sexp`):
 
 ```scheme
 (program
@@ -32,7 +32,7 @@ While I respect PHP as a runtime environment, I had grown weary of writing its s
               (call compact "users"))))))
 ```
 
-**Output** (`build/App/Http/Controllers/UserController.php`):
+**Output** (`UserController.php`):
 
 ```php
 <?php
