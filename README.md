@@ -28,8 +28,8 @@ While I respect PHP as a runtime environment, I had grown weary of writing its s
         (assign = (var users)
                 (call (:: User all))))
        (retur:n
-        (call view "'users.index'"
-              (call compact "'users'"))))))
+        (call view "users.index"
+              (call compact "users"))))))
 ```
 
 **Output** (`build/App/Http/Controllers/UserController.php`):
