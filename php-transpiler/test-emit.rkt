@@ -210,6 +210,11 @@
                                (return (binary concat "'Hello, '" (var "$name"))))))
               "<?php\nfunction greet(string $name): string {\nreturn 'Hello, ' . $name;\n}\n")
 
+;; Symbol form (without $) should also work
+(check-equal? (php '(program (function greet ((param/type string name)) #:return-type string
+                               (return (binary concat "'Hello, '" (var name))))))
+              "<?php\nfunction greet(string $name): string {\nreturn 'Hello, ' . $name;\n}\n")
+
 ;; ============================================================
 ;; Lambda / Closure
 ;; ============================================================

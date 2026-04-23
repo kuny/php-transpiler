@@ -86,7 +86,7 @@
     [else
      (let ([tag (car sexp)] [args (cdr sexp)])
        (case tag
-         [(var) (display (car args) port)]
+         [(var) (display (ensure-dollar (car args)) port)]
          [(&) (display "&" port) (emit-expr (car args) port)]
          [(array-access) (emit-expr (car args) port) (display "[" port)
                          (when (cadr args) (emit-expr (cadr args) port)) (display "]" port)]
@@ -435,21 +435,25 @@
 ;; Parameters & Type hints
 ;; ============================================================
 
+(define (ensure-dollar name)
+  (define s (~a name))
+  (if (string-prefix? s "$") s (string-append "$" s)))
+
 (define (emit-param p port)
   (if (not (pair? p))
       (emit-expr p port)
       (case (car p)
-        [(param) (display (cadr p) port)
+        [(param) (display (ensure-dollar (cadr p)) port)
                  (when (> (length p) 2)
                    (display " = " port) (emit-expr (caddr p) port))]
-        [(param/type) (emit-type-hint (cadr p) port) (display " " port) (display (caddr p) port)
+        [(param/type) (emit-type-hint (cadr p) port) (display " " port) (display (ensure-dollar (caddr p)) port)
                       (when (> (length p) 3)
                         (display " = " port) (emit-expr (cadddr p) port))]
-        [(param&) (display "&" port) (display (cadr p) port)
+        [(param&) (display "&" port) (display (ensure-dollar (cadr p)) port)
                   (when (> (length p) 2)
                     (display " = " port) (emit-expr (caddr p) port))]
-        [(param-rest) (display "..." port) (display (cadr p) port)]
-        [(param-rest-type) (emit-type-hint (cadr p) port) (display " ..." port) (display (caddr p) port)]
+        [(param-rest) (display "..." port) (display (ensure-dollar (cadr p)) port)]
+        [(param-rest-type) (emit-type-hint (cadr p) port) (display " ..." port) (display (ensure-dollar (caddr p)) port)]
         [else (emit-expr p port)])))
 
 (define (emit-params params port)

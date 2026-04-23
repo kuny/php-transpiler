@@ -23,11 +23,11 @@ While I respect PHP as a runtime environment, I had grown weary of writing its s
    (use (ns Illuminate Http Request))
 
    (class UserController #:extends Controller
-     (method (public) index ((param/type Request "$request"))
+     (method (public) index ((param/type Request request))
        (expr-stmt
-        (assign = (var "$users")
+        (assign = (var users)
                 (call (:: User all))))
-       (return
+       (retur:n
         (call view "'users.index'"
               (call compact "'users'"))))))
 ```
