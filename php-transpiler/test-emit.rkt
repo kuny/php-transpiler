@@ -194,7 +194,7 @@
 ;; ============================================================
 
 (check-equal? (php '(program (try (block (echo 1))
-                                  (catch Exception "$e" (echo (var "$e")))
+                                  (catch Exception e (echo (var e)))
                                   (finally (echo "'done'")))))
               "<?php\ntry {\necho 1;\n}\n catch (Exception $e) {\necho $e;\n}\n finally {\necho 'done';\n}\n")
 

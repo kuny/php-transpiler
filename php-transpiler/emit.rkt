@@ -276,7 +276,7 @@
           (emit-block (cons 'block (cdddr c)) port)]
          [else
           (display " " port)
-          (display (caddr c) port)
+          (display (ensure-dollar (caddr c)) port)
           (display ") " port)
           (emit-block (cons 'block (cdddr c)) port)])]
       [(eq? (car c) 'finally)

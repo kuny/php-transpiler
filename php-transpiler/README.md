@@ -237,11 +237,11 @@ null                     ; → null
 
 ```racket
 (try (block (echo 1))
-  (catch Exception "$e" (echo (var e)))
+  (catch Exception e (echo (var e)))
   (finally (echo "'done'")))
 
 ;; 複数例外キャッチ / Multi-catch
-(try (block ...) (catch (TypeError ValueError) "$e" ...))
+(try (block ...) (catch (TypeError ValueError) e ...))
 
 ;; 変数なし catch / Catch without variable (PHP 8.0)
 (try (block ...) (catch NotFoundException #f (echo "'handled'")))

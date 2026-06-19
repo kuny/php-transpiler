@@ -275,11 +275,11 @@ Supported: `int` `float` `string` `array` `object` `bool` `binary` `unset`
 
 ```scheme
 (try (block (echo 1))
-  (catch Exception "$e" (echo (var e)))
+  (catch Exception e (echo (var e)))
   (finally (echo "'done'")))
 
 ;; Multi-catch / 複数例外キャッチ
-(try (block ...) (catch (TypeError ValueError) "$e" ...))
+(try (block ...) (catch (TypeError ValueError) e ...))
 
 ;; Catch without variable / 変数なし catch (PHP 8.0)
 (try (block ...) (catch NotFoundException #f (echo "'handled'")))
