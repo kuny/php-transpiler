@@ -71,345 +71,417 @@ return $this->name;
 
 ### リテラル / Literals
 
-| S式 | PHP |
-|-----|-----|
-| `42` | `42` |
-| `3.14` | `3.14` |
-| `"hello"` | `'hello'` |
-| `"'hello'"` | `'hello'` |
-| `"\"hello\""` | `"hello"` |
-| `true` | `true` |
-| `false` | `false` |
-| `null` | `null` |
-| `__LINE__` | `__LINE__` |
-| `__FILE__` | `__FILE__` |
-| `__DIR__` | `__DIR__` |
-| `__CLASS__` | `__CLASS__` |
-| `__FUNCTION__` | `__FUNCTION__` |
-| `__METHOD__` | `__METHOD__` |
-| `__NAMESPACE__` | `__NAMESPACE__` |
+```racket
+42                       ; → 42
+3.14                     ; → 3.14
+"'hello'"                ; → 'hello'  (クォート付き文字列はそのまま出力 / quote-wrapped strings are emitted as-is)
+"hello"                  ; → 'hello'  (自動的にシングルクォートで囲まれる / bare strings get single-quoted)
+true                     ; → true
+false                    ; → false
+null                     ; → null
+```
 
-文字列は `'` または `"` で始まる場合はそのまま出力される。それ以外は自動的にシングルクォートで囲まれる。
-
-Strings starting with `'` or `"` are output as-is. Otherwise, they are automatically wrapped in single quotes.
+マジック定数 / Magic constants: `__CLASS__`, `__TRAIT__`, `__METHOD__`, `__FUNCTION__`, `__LINE__`, `__FILE__`, `__DIR__`, `__NAMESPACE__`
 
 ### 変数 / Variables
 
-| S式 | PHP |
-|-----|-----|
-| `(var x)` | `$x` |
-| `(& (var x))` | `&$x` |
-| `(array-access (var a) 0)` | `$a[0]` |
-| `(array-access (var a) #f)` | `$a[]` |
-| `(brace-access (var s) 0)` | `$s{0}` |
-| `(indirect (var x) 1)` | `$$x` |
-| `(brace-var (var key))` | `${$key}` |
+```racket
+(var x)                  ; → $x
+(var "$x")               ; → $x  ($ は自動付与 / $ prefix is auto-added if missing)
+(& (var x))              ; → &$x
+(array-access (var arr) 0)  ; → $arr[0]
+(array-access (var arr) #f) ; → $arr[]
+(indirect (var x) 1)     ; → $$x
+(brace-var (var key))    ; → ${$key}
+```
 
 ### 演算子 / Operators
 
-#### 二項演算子 / Binary Operators
+**二項演算子 / Binary:**
 
 ```racket
-(binary op left right)
+(binary + 1 2)           ; → 1 + 2
+(binary concat (var a) "'b'")  ; → $a . 'b'
+(binary pow 2 10)        ; → 2 ** 10
+(binary spaceship (var a) (var b))  ; → $a <=> $b
 ```
 
-| `op` | PHP |
-|------|-----|
-| `+` `-` `*` `/` `%` | `+` `-` `*` `/` `%` |
-| `pow` | `**` |
-| `concat` | `.` |
-| `&` `bw-or` `^` `shl` `shr` | `&` `\|` `^` `<<` `>>` |
-| `&&` `or-short` | `&&` `\|\|` |
-| `and` `or` `xor` | `and` `or` `xor` |
-| `==` `!=` `===` `!==` | `==` `!=` `===` `!==` |
-| `<` `<=` `>` `>=` | `<` `<=` `>` `>=` |
-| `spaceship` | `<=>` |
+対応: `+` `-` `*` `/` `%` `pow` `concat` `&` `bw-or` `^` `shl` `shr` `&&` `or-short` `and` `or` `xor` `==` `!=` `===` `!==` `<` `<=` `>` `>=` `spaceship`
 
-Racket のリーダーで `.` `**` `||` `|` `<<` `>>` `<=>` がシンボルとして使えないため、それぞれ `concat` `pow` `or-short` `bw-or` `shl` `shr` `spaceship` を使う。
-
-Since `.` `**` `||` `|` `<<` `>>` `<=>` cannot be used as symbols in the Racket reader, use `concat` `pow` `or-short` `bw-or` `shl` `shr` `spaceship` respectively.
-
-#### 単項演算子 / Unary Operators
+**単項演算子 / Unary:**
 
 ```racket
-(unary op expr)  ; op: + - ! ~
+(unary ! (var x))        ; → !$x
+(pre-inc (var i))        ; → ++$i
+(post-dec (var i))       ; → $i--
 ```
 
-#### インクリメント / デクリメント / Increment / Decrement
+**代入演算子 / Assignment:**
 
 ```racket
-(pre-inc (var i))   ; ++$i
-(pre-dec (var i))   ; --$i
-(post-inc (var i))  ; $i++
-(post-dec (var i))  ; $i--
+(assign = (var x) 42)    ; → $x = 42
+(assign += (var x) 1)    ; → $x += 1
+(assign concat= (var s) "'w'")  ; → $s .= 'w'
+(assign coalesce= (var x) "'default'")  ; → $x ??= 'default'  (PHP 8.0)
 ```
 
-#### 代入 / Assignment
+対応: `=` `+=` `-=` `*=` `/=` `%=` `pow=` `concat=` `&=` `bw-or=` `^=` `<<=` `>>=` `coalesce=`
+
+**キャスト / Cast:**
 
 ```racket
-(assign op left right)
+(cast int (var x))       ; → (int)$x
+(cast string (var x))    ; → (string)$x
 ```
 
-| `op` | PHP |
-|------|-----|
-| `=` `+=` `-=` `*=` `/=` `%=` | `=` `+=` `-=` `*=` `/=` `%=` |
-| `pow=` | `**=` |
-| `concat=` | `.=` |
-| `&=` `bw-or=` `^=` `<<=` `>>=` | `&=` `\|=` `^=` `<<=` `>>=` |
+対応: `int` `float` `string` `array` `object` `bool` `binary` `unset`
 
-#### キャスト / Cast
+**三項演算子・Null合体演算子 / Ternary & Null coalescing:**
 
 ```racket
-(cast type expr)  ; type: int float string array object bool binary unset
-```
-
-#### 三項演算子 / Null 合体 / Ternary / Null Coalescing
-
-```racket
-(ternary test then else)     ; $test ? $then : $else
-(ternary test #f else)       ; $test ?: $else
-(coalesce left right)        ; $left ?? $right
-```
-
-### オブジェクト / スタティックアクセス / Object / Static Access
-
-```racket
-;; $obj->name
-(-> (var obj) (access name))
-
-;; $obj->method(1, 2)
-(-> (var obj) (access method) (call-chain 1 2))
-
-;; $obj->items[0]->name
-(-> (var obj) (access items) (index 0) (access name))
-
-;; MyClass::CONST
-(:: MyClass CONST)
-
-;; MyClass::method()
-(call (:: MyClass method))
-```
-
-チェーン内の要素 / Chain elements:
-
-| S式 | 意味 / Meaning |
-|-----|------|
-| `(access name)` | プロパティ/メソッド名 (-> が前置される) / Property/method name (prefixed with ->) |
-| `(call-chain args ...)` | メソッド呼び出しの引数 (直前の access に続く) / Method call arguments (follows the preceding access) |
-| `(index expr)` | 配列インデックス `[expr]` / Array index `[expr]` |
-| `(brace expr)` | ブレースアクセス `{expr}` / Brace access `{expr}` |
-
-### 関数呼び出し / new / clone / Function Calls / new / clone
-
-```racket
-(call strlen "hello")                    ; strlen('hello')
-(call array_merge (var a) (splat (var b)))  ; array_merge($a, ...$b)
-(new DateTime "2024-01-01")              ; new DateTime('2024-01-01')
-(new DateTime)                           ; new DateTime
-(clone (var obj))                        ; clone $obj
-(instanceof (var obj) Exception)         ; $obj instanceof Exception
+(ternary (var a) (var b) (var c))  ; → $a ? $b : $c
+(ternary (var a) #f (var c))       ; → $a ?: $c
+(coalesce (var a) (var b))         ; → $a ?? $b
 ```
 
 ### 配列 / Arrays
 
 ```racket
-(array 1 2 3)                           ; array(1, 2, 3)
-(short-array (=> "a" 1) (=> "b" 2))     ; ['a' => 1, 'b' => 2]
-(php-list (var a) (var b))         ; list($a, $b)
+(array 1 2 3)            ; → array(1, 2, 3)
+(short-array 1 2 3)      ; → [1, 2, 3]
+(short-array (=> "'a'" 1) (=> "'b'" 2))  ; → ['a' => 1, 'b' => 2]
+(php-list (var a) (var b))  ; → list($a, $b)
+(splat (var arr))         ; → ...$arr
 ```
 
-### 文 / Statements
+### オブジェクトアクセス / Object Access
 
 ```racket
-(expr-stmt expr)             ; expr;
-(echo expr ...)              ; echo expr, ...;
-(return expr)                ; return expr;
-(return)                     ; return;
-(break)                      ; break;
-(continue)                   ; continue;
-(throw expr)                 ; throw expr;
-(global (var a) ...)      ; global $a, ...;
-(unset (var a) ...)       ; unset($a, ...);
-(goto label)                 ; goto label;
-(label name)                 ; name:
-empty-stmt                   ; ;
+(-> (var obj) (access prop))     ; → $obj->prop
+(-> (var obj) (access method) (call-chain 1 2))  ; → $obj->method(1, 2)
+(-> (var obj) (access items) (index 0) (access name))  ; → $obj->items[0]->name
+(:: MyClass CONST)               ; → MyClass::CONST
+(call (:: MyClass method))       ; → MyClass::method()
+(new DateTime "'2024-01-01'")    ; → new DateTime('2024-01-01')
+(clone (var obj))                ; → clone $obj
+(instanceof (var obj) Exception) ; → $obj instanceof Exception
 ```
 
-### ブロック / Blocks
+**Nullsafe 演算子 / Nullsafe operator (PHP 8.0):**
 
 ```racket
-(block stmt ...)             ; { stmt; ... }
+(?-> (var obj) (access address) (access city))  ; → $obj?->address?->city
 ```
 
-### 制御構造 / Control Structures
+### 関数呼び出し / Function Calls
 
 ```racket
-;; if
-(if test (block then ...))
-(if test (block then ...) (block else ...))
-(if test (block then ...)
-         (elseif (cond1 (block body1 ...))
-                 (cond2 (block body2 ...)))
-         (block else ...))
-
-;; while / do-while
-(while test (block body ...))
-(do-while test (block body ...))
-
-;; for
-(for (init-exprs ...) (test-exprs ...) (step-exprs ...) (block body ...))
-
-;; foreach
-(foreach expr (var v) (block body ...))
-(foreach expr (var k) (var v) (block body ...))
-
-;; switch
-(switch test
-  (case 1 stmt ...)
-  (case "a" stmt ...)
-  (default stmt ...))
-
-;; try / catch / finally
-(try (block body ...)
-  (catch ExceptionClass e stmt ...)
-  (catch (Type1 Type2) e stmt ...)     ; multi-catch
-  (finally stmt ...))
+(call strlen "'hello'")  ; → strlen('hello')
+(call func (splat (var args)))  ; → func(...$args)
 ```
 
-### 関数宣言 / Function Declarations
+**名前付き引数 / Named arguments (PHP 8.0):**
 
 ```racket
-;; 基本 / Basic
-(function name (params ...) body ...)
-
-;; 戻り値型 / Return type
-(function name (params ...) #:return-type type body ...)
-
-;; 参照返し / Return by reference
-(function& name (params ...) body ...)
+(call array_slice (var arr) (named-arg offset 2) (named-arg length 3))
+; → array_slice($arr, offset: 2, length: 3)
 ```
 
-#### パラメータ / Parameters
-
-| S式 | PHP |
-|-----|-----|
-| `(param x)` | `$x` |
-| `(param x 0)` | `$x = 0` |
-| `(param/type int x)` | `int $x` |
-| `(param/type int x 0)` | `int $x = 0` |
-| `(param/type (? string) s)` | `?string $s` |
-| `(param& x)` | `&$x` |
-| `(param-rest args)` | `...$args` |
-| `(param-rest-type int nums)` | `int ...$nums` |
-
-### ラムダ / クロージャ / Lambdas / Closures
+**第一級callableシンタックス / First-class callable syntax (PHP 8.1):**
 
 ```racket
-;; 基本 / Basic
-(lambda (params ...) body ...)
+(first-class-callable strlen)          ; → strlen(...)
+(first-class-callable (:: Foo bar))    ; → Foo::bar(...)
+```
 
-;; use 句付き / With use clause
-(lambda (params ...) (use (var x) (var y)) body ...)
+### 制御構文 / Control Flow
 
-;; static
-(static-lambda (params ...) body ...)
+**if / elseif / else:**
+
+```racket
+(if (var x) (block (return 1)))
+(if (var x) (block (return 1)) (block (return 2)))
+(if (var x) (block (return 1)) (elseif ((var y) (block (return 2)))) (block (return 3)))
+```
+
+**ループ / Loops:**
+
+```racket
+(while true (block (break)))
+(do-while (var x) (block (expr-stmt (post-dec (var x)))))
+(for ((assign = (var i) 0)) ((binary < (var i) 10)) ((post-inc (var i)))
+  (block (echo (var i))))
+(foreach (var arr) (var v) (block (echo (var v))))
+(foreach (var arr) (var k) (var v) (block (echo (var k))))
+```
+
+**switch:**
+
+```racket
+(switch (var x)
+  (case 1 (echo "'one'") (break))
+  (default (echo "'other'")))
+```
+
+**match 式 / Match expression (PHP 8.0):**
+
+```racket
+(match (var status)
+  (match-arm (200 300) "'ok'")
+  (match-arm (404) "'not found'")
+  (match-default "'error'"))
+; → match($status) { 200, 300 => 'ok', 404 => 'not found', default => 'error', }
+```
+
+**try / catch / finally:**
+
+```racket
+(try (block (echo 1))
+  (catch Exception "$e" (echo (var e)))
+  (finally (echo "'done'")))
+
+;; 複数例外キャッチ / Multi-catch
+(try (block ...) (catch (TypeError ValueError) "$e" ...))
+
+;; 変数なし catch / Catch without variable (PHP 8.0)
+(try (block ...) (catch NotFoundException #f (echo "'handled'")))
+```
+
+**その他 / Other:**
+
+```racket
+(return (var x))         ; → return $x;
+(return)                 ; → return;
+(break)                  ; → break;
+(continue)               ; → continue;
+(throw (new Ex))         ; → throw new Ex;  (PHP 8.0 では式としても使用可 / also usable as expression in PHP 8.0)
+(goto end)               ; → goto end;
+(label end)              ; → end:
+```
+
+### 関数 / Functions
+
+```racket
+(function add ((param a) (param b))
+  (return (binary + (var a) (var b))))
+; → function add($a, $b) { return $a + $b; }
+
+;; 戻り値型付き / With return type
+(function greet ((param/type string name)) #:return-type string
+  (return (binary concat "'Hello, '" (var name))))
+; → function greet(string $name): string { return 'Hello, ' . $name; }
+
+;; 参照返し / Reference return
+(function& name ((param x)) ...)
+```
+
+**パラメータ / Parameters:**
+
+```racket
+(param x)                ; → $x
+(param x 0)              ; → $x = 0
+(param/type int x)       ; → int $x
+(param/type int x 0)     ; → int $x = 0
+(param/type (? string) s)  ; → ?string $s
+(param& x)               ; → &$x
+(param-rest args)         ; → ...$args
+(param-rest-type int nums)  ; → int ...$nums
+```
+
+**コンストラクタプロパティ昇格 / Constructor property promotion (PHP 8.0):**
+
+```racket
+(param/promoted (private) string name)          ; → private string $name
+(param/promoted (private readonly) string name)  ; → private readonly string $name
+(param/promoted (protected) int age 0)          ; → protected int $age = 0
+```
+
+**ラムダ / クロージャ / Lambda / Closure:**
+
+```racket
+(lambda ((param x)) (return (binary * (var x) 2)))
+; → function($x) { return $x * 2; }
+
+(lambda ((param x)) (use (var y)) (return (binary + (var x) (var y))))
+; → function($x) use ($y) { return $x + $y; }
+
+(static-lambda ((param x)) ...)
+; → static function($x) { ... }
+```
+
+**アロー関数 / Arrow function (PHP 7.4+):**
+
+```racket
+(arrow-fn ((param x)) (binary * (var x) 2))
+; → fn($x) => $x * 2
+
+(arrow-fn ((param/type int x)) #:return-type int (binary * (var x) 2))
+; → fn(int $x): int => $x * 2
+
+(static-arrow-fn ((param x)) (binary * (var x) 2))
+; → static fn($x) => $x * 2
+```
+
+### 型ヒント / Type Hints
+
+**基本型 / Basic types:** `int`, `float`, `string`, `bool`, `array`, `callable`, `void`, `self`, `iterable`, `object`, `parent`, `static`
+
+**PHP 8.0+ の型:** `mixed`, `null`, `false`, `true`, `never`
+
+**Null許容型 / Nullable:**
+
+```racket
+(? string)               ; → ?string
+```
+
+**ユニオン型 / Union types (PHP 8.0):**
+
+```racket
+(union int string)       ; → int|string
+(union int false)        ; → int|false
+```
+
+**交差型 / Intersection types (PHP 8.1):**
+
+```racket
+(intersection Countable Iterator)  ; → Countable&Iterator
+```
+
+**DNF型 / DNF types (PHP 8.2):**
+
+```racket
+(union (intersection A B) null)  ; → (A&B)|null
 ```
 
 ### クラス / Classes
 
 ```racket
-;; 基本 / Basic
-(class Name body ...)
+(class Dog #:extends Animal #:implements (Runnable)
+  (property (public) (var name))
+  (method (public) __construct ((param name))
+    (expr-stmt (assign = (-> (var this) (access name)) (var name))))
+  (method (public) bark ()
+    (return "'Woof!'")))
 
-;; extends / implements
-(class Name #:extends Parent #:implements (Interface1 Interface2) body ...)
-
-;; abstract / final
-(abstract-class Name body ...)
-(final-class Name body ...)
+(abstract-class Base (method (abstract public) render ()))
+(final-class Singleton)
+(readonly-class Point ...)  ; PHP 8.2
 ```
 
-#### クラスメンバ / Class Members
+**プロパティ / Properties:**
 
 ```racket
-;; プロパティ / Properties
-(property (public) (var name))
-(property (protected static) ((var count) 0))     ; デフォルト値付き / With default value
+(property (public) (var name))                    ; → public $name;
+(property (public static) ((var count) 0))        ; → public static $count = 0;
+(typed-property (public) string (var name))        ; → public string $name;
+(typed-property (private) int ((var retries) 3))   ; → private int $retries = 3;
+(typed-property (public readonly) string (var name))  ; → public readonly string $name;
+```
 
-;; メソッド / Methods
-(method (public) name (params ...) body ...)
-(method (abstract public) name (params ...))     ; 抽象メソッド (body なし) / Abstract method (no body)
-(method/rt (public) name (params ...) return-type body ...)
-(method& (public) name (params ...) body ...)    ; 参照返し / Return by reference
+**メソッド / Methods:**
 
-;; 定数 / Constants
-(class-const NAME value)
-(class-const private NAME value)                 ; アクセス修飾子付き / With access modifier
+```racket
+(method (public) name ((param x)) (return (var x)))
+(method/rt (public) name ((param x)) string (return (var x)))  ; 戻り値型付き / with return type
+(method& (public) name ((param x)) ...)  ; 参照返し / reference return
+```
 
-;; トレイト使用 / Trait usage
-(use-trait TraitName)
-(use-trait Trait1 Trait2)
+**クラス定数 / Class constants:**
+
+```racket
+(class-const MAX 100)                    ; → const MAX = 100;
+(class-const private SECRET "'shhh'")    ; → private const SECRET = 'shhh';
+(typed-class-const string NAME "'foo'")  ; → const string NAME = 'foo';  (PHP 8.3)
+(typed-class-const public int MAX 100)   ; → public const int MAX = 100;  (PHP 8.3)
 ```
 
 ### インターフェース / Interfaces
 
 ```racket
-(interface Name
-  (method (public) doSomething ((param x))))
+(interface Loggable
+  (method (public) log ((param msg))))
 
-(interface Name #:extends (ParentInterface)
-  body ...)
+(interface Cacheable #:extends (Serializable)
+  (method (public) cache ()))
 ```
 
 ### トレイト / Traits
 
 ```racket
-(trait Name
-  (property (protected) (var value))
-  (method (public) getValue ()
-    (return (-> (var this) (access value)))))
+(trait Timestampable
+  (property (protected) (var createdAt))
+  (method (public) getCreatedAt ()
+    (return (-> (var this) (access createdAt)))))
+
+;; トレイトの使用 / Using traits
+(use-trait Bar)
+(use-trait-with (TraitA TraitB)
+  (insteadof (:: TraitA method) (TraitB))
+  (as (:: TraitA method) public aliasName))
 ```
 
-### 名前空間 / use 文 / Namespaces / Use Statements
+### 列挙型 / Enums (PHP 8.1)
 
 ```racket
-(namespace (ns App Models))              ; namespace App\Models;
-(namespace (ns App) body ...)            ; namespace App { ... }
+;; 基本列挙型 / Basic enum
+(enum Suit
+  (enum-case Hearts)
+  (enum-case Diamonds)
+  (enum-case Clubs)
+  (enum-case Spades))
 
-(use (ns App Models User))              ; use App\Models\User;
-(use (as (ns App Models User) U))       ; use App\Models\User as U;
-(use-function (ns App Helpers helper))  ; use function App\Helpers\helper;
-(use-const (ns App Config VERSION))     ; use const App\Config\VERSION;
+;; バック型付き列挙型 / Backed enum
+(enum Color #:type string
+  (enum-case Red "'red'")
+  (enum-case Green "'green'"))
 
-;; 絶対パス / Absolute path
-(ns-global App Models User)             ; \App\Models\User
+;; インターフェース実装 / Enum with interface
+(enum Suit #:implements (HasColor)
+  (enum-case Hearts)
+  (method (public) color ()
+    (return "'red'")))
 ```
 
-### その他の式 / Other Expressions
+### アトリビュート / Attributes (PHP 8.0)
 
 ```racket
-(print expr)                 ; print expr
-(exit)                       ; exit
-(exit expr)                  ; exit(expr)
-(eval expr)                  ; eval(expr)
-(isset (var x) ...)          ; isset($x, ...)
-(empty (var x))              ; empty($x)
-(include expr)               ; include expr
-(include-once expr)          ; include_once expr
-(require expr)               ; require expr
-(require-once expr)          ; require_once expr
-(@ expr)                     ; @expr (エラー抑制 / Error suppression)
-(yield expr)                 ; yield expr
-(yield key val)              ; yield key => val
-(yield-from expr)            ; yield from expr
-(paren expr)                 ; (expr) 明示的な括弧 / Explicit parentheses
-(splat expr)                 ; ...expr (引数アンパック / Argument unpacking)
+(attribute Override)                    ; → #[Override]
+(attribute Route "'/api/users'" "'GET'")  ; → #[Route('/api/users', 'GET')]
 ```
 
-### 定数 / Constants
+### 名前空間 / Namespaces & Use
 
 ```racket
-(const NAME value)           ; const NAME = value;
+(namespace (ns App Models))             ; → namespace App\Models;
+(use (ns App Models User))              ; → use App\Models\User;
+(use (as (ns App Models User) U))       ; → use App\Models\User as U;
+(use-function (ns App Helpers helper))  ; → use function App\Helpers\helper;
+(use-const (ns App Config VERSION))     ; → use const App\Config\VERSION;
+(ns App Models User)                    ; → App\Models\User  (式として / expression)
+(ns-global App Models User)             ; → \App\Models\User
+```
+
+### その他 / Other
+
+```racket
+(echo "'hello'" (var x))     ; → echo 'hello', $x;
+(print "'hello'")            ; → print 'hello';
+(exit 1)                     ; → exit(1);
+(const VERSION "'1.0'")      ; → const VERSION = '1.0';
+(include "'file.php'")       ; → include 'file.php';
+(require-once "'config.php'")  ; → require_once 'config.php';
+(isset (var x) (var y))      ; → isset($x, $y);
+(empty (var arr))            ; → empty($arr);
+(global (var db) (var config))  ; → global $db, $config;
+(unset (var x))              ; → unset($x);
+(eval "'echo 1;'")           ; → eval('echo 1;');
+(@ (call func))              ; → @func();
+(declare ((strict_types 1)) (block ...))  ; → declare(strict_types = 1) { ... }
+(yield (var val))            ; → yield $val;
+(yield "'key'" "'val'")      ; → yield 'key' => 'val';
+(yield-from (var gen))       ; → yield from $gen;
+(heredoc EOT "content" EOT)  ; → <<<EOT\ncontent\nEOT
+(nowdoc EOT "content" EOT)   ; → <<<'EOT'\ncontent\nEOT
 ```
 
 ## 公開 API / Public API
