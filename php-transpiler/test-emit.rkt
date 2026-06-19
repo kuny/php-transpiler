@@ -430,4 +430,250 @@
                                (return (var "$s")))))
               "<?php\nfunction test(?string $s) {\nreturn $s;\n}\n")
 
+;; ============================================================
+;; PHP 8.0: Union types
+;; ============================================================
+
+(check-equal? (php '(program (function test ((param/type (union int string) "$x")) #:return-type (union int false)
+                               (return (var "$x")))))
+              "<?php\nfunction test(int|string $x): int|false {\nreturn $x;\n}\n")
+
+;; ============================================================
+;; PHP 8.1: Intersection types
+;; ============================================================
+
+(check-equal? (php '(program (function test ((param/type (intersection Countable Iterator) "$x"))
+                               (return (var "$x")))))
+              "<?php\nfunction test(Countable&Iterator $x) {\nreturn $x;\n}\n")
+
+;; ============================================================
+;; PHP 8.2: DNF types (union + intersection)
+;; ============================================================
+
+(check-equal? (php '(program (function test ((param/type (union (intersection A B) null) "$x"))
+                               (return (var "$x")))))
+              "<?php\nfunction test((A&B)|null $x) {\nreturn $x;\n}\n")
+
+;; ============================================================
+;; PHP 8.0: Named arguments
+;; ============================================================
+
+(check-equal? (php '(program (expr-stmt (call array_slice (var "$arr") (named-arg offset 2) (named-arg length 3)))))
+              "<?php\narray_slice($arr, offset: 2, length: 3);\n")
+
+;; ============================================================
+;; PHP 8.0: Match expression
+;; ============================================================
+
+(check-equal? (php '(program (expr-stmt (assign = (var "$result")
+                               (match (var "$status")
+                                 (match-arm (200 300) "'ok'")
+                                 (match-arm (404) "'not found'")
+                                 (match-default "'error'"))))))
+              "<?php\n$result = match($status) {\n200, 300 => 'ok',\n404 => 'not found',\ndefault => 'error',\n};\n")
+
+;; ============================================================
+;; PHP 8.0: Nullsafe operator
+;; ============================================================
+
+(check-equal? (php '(program (expr-stmt (?-> (var "$obj") (access address) (access city)))))
+              "<?php\n$obj?->address?->city;\n")
+
+;; ============================================================
+;; PHP 8.0: Constructor property promotion
+;; ============================================================
+
+(check-equal? (php '(program (class Point
+                               (method (public) __construct
+                                 ((param/promoted (private) float x)
+                                  (param/promoted (private) float y))
+                                 ))))
+              (string-append
+               "<?php\n"
+               "class Point {\n"
+               "public function __construct(private float $x, private float $y);\n"
+               "}\n"))
+
+;; Constructor promotion with body
+(check-equal? (php '(program (class Point
+                               (method (public) __construct
+                                 ((param/promoted (private) float x)
+                                  (param/promoted (private) float y))
+                                 (expr-stmt (call validate (var "$x") (var "$y")))))))
+              (string-append
+               "<?php\n"
+               "class Point {\n"
+               "public function __construct(private float $x, private float $y) {\n"
+               "validate($x, $y);\n"
+               "}\n"
+               "}\n"))
+
+;; ============================================================
+;; PHP 8.0: throw as expression
+;; ============================================================
+
+(check-equal? (php '(program (expr-stmt (assign = (var "$val")
+                               (coalesce (var "$x") (throw (new InvalidArgumentException)))))))
+              "<?php\n$val = $x ?? throw new InvalidArgumentException;\n")
+
+;; ============================================================
+;; PHP 8.0: catch without variable
+;; ============================================================
+
+(check-equal? (php '(program (try (block (echo 1))
+                                  (catch NotFoundException #f (echo "'handled'")))))
+              "<?php\ntry {\necho 1;\n}\n catch (NotFoundException) {\necho 'handled';\n}\n")
+
+;; ============================================================
+;; PHP 8.0: Null coalescing assignment
+;; ============================================================
+
+(check-equal? (php '(program (expr-stmt (assign coalesce= (var "$x") "'default'"))))
+              "<?php\n$x ??= 'default';\n")
+
+;; ============================================================
+;; PHP 8.1: Enum (basic)
+;; ============================================================
+
+(check-equal? (php '(program (enum Suit
+                               (enum-case Hearts)
+                               (enum-case Diamonds)
+                               (enum-case Clubs)
+                               (enum-case Spades))))
+              (string-append
+               "<?php\n"
+               "enum Suit {\n"
+               "case Hearts;\ncase Diamonds;\ncase Clubs;\ncase Spades;\n"
+               "}\n"))
+
+;; ============================================================
+;; PHP 8.1: Backed enum
+;; ============================================================
+
+(check-equal? (php '(program (enum Color #:type string
+                               (enum-case Red "'red'")
+                               (enum-case Green "'green'"))))
+              (string-append
+               "<?php\n"
+               "enum Color: string {\n"
+               "case Red = 'red';\ncase Green = 'green';\n"
+               "}\n"))
+
+;; ============================================================
+;; PHP 8.1: Enum with implements
+;; ============================================================
+
+(check-equal? (php '(program (enum Suit #:implements (HasColor)
+                               (enum-case Hearts)
+                               (method (public) color ()
+                                 (return "'red'")))))
+              (string-append
+               "<?php\n"
+               "enum Suit implements HasColor {\n"
+               "case Hearts;\n"
+               "public function color() {\nreturn 'red';\n}\n"
+               "}\n"))
+
+;; ============================================================
+;; PHP 8.1: First-class callable syntax
+;; ============================================================
+
+(check-equal? (php '(program (expr-stmt (assign = (var "$fn") (first-class-callable strlen)))))
+              "<?php\n$fn = strlen(...);\n")
+
+(check-equal? (php '(program (expr-stmt (assign = (var "$fn")
+                               (first-class-callable (-> (var "$obj") (access method)))))))
+              "<?php\n$fn = $obj->method(...);\n")
+
+;; ============================================================
+;; PHP 8.1: readonly property (via modifier)
+;; ============================================================
+
+(check-equal? (php '(program (class User
+                               (typed-property (public readonly) string (var "$name")))))
+              "<?php\nclass User {\npublic readonly string $name;\n}\n")
+
+;; ============================================================
+;; PHP 8.2: Readonly class
+;; ============================================================
+
+(check-equal? (php '(program (readonly-class Point
+                               (typed-property (public) float (var "$x"))
+                               (typed-property (public) float (var "$y")))))
+              (string-append
+               "<?php\n"
+               "readonly class Point {\n"
+               "public float $x;\npublic float $y;\n"
+               "}\n"))
+
+;; ============================================================
+;; PHP 8.0: Attributes
+;; ============================================================
+
+(check-equal? (php '(program (attribute Route "'/api/users'" "'GET'")))
+              "<?php\n#[Route('/api/users', 'GET')]\n")
+
+(check-equal? (php '(program (attribute Override)))
+              "<?php\n#[Override]\n")
+
+;; ============================================================
+;; PHP 7.4+: Arrow function
+;; ============================================================
+
+(check-equal? (php '(program (expr-stmt (assign = (var "$fn")
+                               (arrow-fn ((param "$x")) (binary * (var "$x") 2))))))
+              "<?php\n$fn = fn($x) => $x * 2;\n")
+
+(check-equal? (php '(program (expr-stmt (assign = (var "$fn")
+                               (arrow-fn ((param/type int "$x")) #:return-type int
+                                 (binary * (var "$x") 2))))))
+              "<?php\n$fn = fn(int $x): int => $x * 2;\n")
+
+;; ============================================================
+;; PHP 8.0: mixed type
+;; ============================================================
+
+(check-equal? (php '(program (function test ((param/type mixed "$x")) #:return-type mixed
+                               (return (var "$x")))))
+              "<?php\nfunction test(mixed $x): mixed {\nreturn $x;\n}\n")
+
+;; ============================================================
+;; PHP 8.1: never type
+;; ============================================================
+
+(check-equal? (php '(program (function abort () #:return-type never
+                               (throw (new RuntimeException)))))
+              "<?php\nfunction abort(): never {\nthrow new RuntimeException;\n}\n")
+
+;; ============================================================
+;; PHP 7.4+: Typed property with default
+;; ============================================================
+
+(check-equal? (php '(program (class Config
+                               (typed-property (private) int ((var "$retries") 3)))))
+              "<?php\nclass Config {\nprivate int $retries = 3;\n}\n")
+
+;; ============================================================
+;; PHP 8.3: Typed class constants
+;; ============================================================
+
+(check-equal? (php '(program (class Foo
+                               (typed-class-const string NAME "'foo'")
+                               (typed-class-const public int MAX 100))))
+              "<?php\nclass Foo {\nconst string NAME = 'foo';\npublic const int MAX = 100;\n}\n")
+
+;; ============================================================
+;; PHP 8.0: Constructor promotion with readonly
+;; ============================================================
+
+(check-equal? (php '(program (class User
+                               (method (public) __construct
+                                 ((param/promoted (private readonly) string name)
+                                  (param/promoted (protected) int age 0))))))
+              (string-append
+               "<?php\n"
+               "class User {\n"
+               "public function __construct(private readonly string $name, protected int $age = 0);\n"
+               "}\n"))
+
 (displayln "All tests passed!")

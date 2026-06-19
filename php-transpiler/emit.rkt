@@ -67,6 +67,9 @@
           [(abstract-class) (emit-class-dcl '(abstract) (car args) (cdr args) port)]
           [(final-class) (emit-class-dcl '(final) (car args) (cdr args) port)]
           [(interface) (emit-interface-dcl (car args) (cdr args) port)]
+          [(readonly-class) (emit-class-dcl '(readonly) (car args) (cdr args) port)]
+          [(enum) (emit-enum-dcl (car args) (cdr args) port)]
+          [(attribute) (emit-attribute args port)]
           [(trait) (display "trait " port) (display (car args) port) (display " {\n" port)
                    (for ([s (cdr args)]) (emit-class-member s port)) (display "}\n" port)]
           [(const) (display "const " port) (display (car args) port) (display " = " port)
@@ -93,6 +96,7 @@
          [(brace-access) (emit-expr (car args) port) (display "{" port)
                          (emit-expr (cadr args) port) (display "}" port)]
          [(->) (emit-chain args port)]
+         [(?->) (emit-chain args port "?->")]
          [(::) (emit-expr (car args) port) (display "::" port) (emit-expr (cadr args) port)]
          [(binary) (emit-expr (cadr args) port) (display " " port)
                    (display (binary-op->php (car args)) port) (display " " port)
@@ -147,6 +151,15 @@
          [(heredoc) (fprintf port "<<<~a\n~a\n~a" (car args) (cadr args) (car args))]
          [(nowdoc) (fprintf port "<<<'~a'\n~a\n~a" (car args) (cadr args) (car args))]
          [(=>) (emit-expr (car args) port) (display " => " port) (emit-expr (cadr args) port)]
+         ;; PHP 8: match expression
+         [(match) (emit-match args port)]
+         ;; PHP 8: arrow function
+         [(arrow-fn) (emit-arrow-fn #f args port)]
+         [(static-arrow-fn) (emit-arrow-fn #t args port)]
+         ;; PHP 8.1: first-class callable syntax
+         [(first-class-callable) (emit-expr (car args) port) (display "(...)" port)]
+         ;; PHP 8.0: throw as expression
+         [(throw) (display "throw " port) (emit-expr (car args) port)]
          [else (error 'emit-expr "unknown expression: ~a" sexp)]))]))
 
 (define (emit-symbol s port)
@@ -256,10 +269,16 @@
       [(eq? (car c) 'catch)
        (display " catch (" port)
        (emit-catch-types (cadr c) port)
-       (display " " port)
-       (display (caddr c) port)
-       (display ") " port)
-       (emit-block (cons 'block (cdddr c)) port)]
+       (cond
+         ;; PHP 8.0: catch without variable — (catch Type #f body...)
+         [(eq? (caddr c) #f)
+          (display ") " port)
+          (emit-block (cons 'block (cdddr c)) port)]
+         [else
+          (display " " port)
+          (display (caddr c) port)
+          (display ") " port)
+          (emit-block (cons 'block (cdddr c)) port)])]
       [(eq? (car c) 'finally)
        (display " finally " port)
        (emit-block (cons 'block (cdr c)) port)])))
@@ -292,10 +311,10 @@
 ;; Expression helpers
 ;; ============================================================
 
-(define (emit-chain args port)
+(define (emit-chain args port [arrow "->"])
   (for ([p args] [i (in-naturals)])
     (when (and (> i 0) (needs-arrow? p))
-      (display "->" port))
+      (display arrow port))
     (emit-chain-part p port)))
 
 (define (needs-arrow? p)
@@ -319,6 +338,72 @@
     [(= (length args) 1) (display "yield " port) (emit-expr (car args) port)]
     [else (display "yield " port) (emit-expr (car args) port)
           (display " => " port) (emit-expr (cadr args) port)]))
+
+;; PHP 8.0: match expression
+(define (emit-match args port)
+  (display "match(" port)
+  (emit-expr (car args) port)
+  (display ") {\n" port)
+  (for ([arm (cdr args)])
+    (cond
+      [(eq? (car arm) 'match-arm)
+       (for ([c (cadr arm)] [i (in-naturals)])
+         (when (> i 0) (display ", " port))
+         (emit-expr c port))
+       (display " => " port)
+       (emit-expr (caddr arm) port)
+       (display ",\n" port)]
+      [(eq? (car arm) 'match-default)
+       (display "default => " port)
+       (emit-expr (cadr arm) port)
+       (display ",\n" port)]))
+  (display "}" port))
+
+;; PHP 7.4+: arrow function
+(define (emit-arrow-fn static? args port)
+  (define params (car args))
+  (define rest (cdr args))
+  (define-values (rtype body-rest) (parse-return-type rest))
+  (when static? (display "static " port))
+  (display "fn" port)
+  (emit-params params port)
+  (when rtype (display ": " port) (emit-type-hint rtype port))
+  (display " => " port)
+  (emit-expr (car body-rest) port))
+
+;; PHP 8.1: enum declaration
+(define (emit-enum-dcl name rest port)
+  (define-values (type implements body) (parse-enum-keyword-args rest))
+  (display "enum " port)
+  (display name port)
+  (when type (display ": " port) (emit-type-hint type port))
+  (when (not (null? implements))
+    (display " implements " port)
+    (for ([iface implements] [i (in-naturals)])
+      (when (> i 0) (display ", " port))
+      (emit-expr iface port)))
+  (display " {\n" port)
+  (for ([s body]) (emit-class-member s port))
+  (display "}\n" port))
+
+(define (parse-enum-keyword-args rest)
+  (let loop ([r rest] [type #f] [implements '()])
+    (cond
+      [(and (>= (length r) 2) (equal? (car r) '#:type))
+       (loop (cddr r) (cadr r) implements)]
+      [(and (>= (length r) 2) (equal? (car r) '#:implements))
+       (loop (cddr r) type (cadr r))]
+      [else (values type implements r)])))
+
+;; PHP 8.0: attributes
+(define (emit-attribute args port)
+  (display "#[" port)
+  (emit-expr (car args) port)
+  (when (> (length args) 1)
+    (display "(" port)
+    (emit-call-args (cdr args) port)
+    (display ")" port))
+  (display "]\n" port))
 
 (define (emit-lambda-expr static? args port)
   (define params (car args))
@@ -381,9 +466,12 @@
 (define (emit-call-args args port)
   (for ([a args] [i (in-naturals)])
     (when (> i 0) (display ", " port))
-    (if (and (pair? a) (eq? (car a) 'splat))
-        (begin (display "..." port) (emit-expr (cadr a) port))
-        (emit-expr a port))))
+    (cond
+      [(and (pair? a) (eq? (car a) 'splat))
+       (display "..." port) (emit-expr (cadr a) port)]
+      [(and (pair? a) (eq? (car a) 'named-arg))
+       (display (cadr a) port) (display ": " port) (emit-expr (caddr a) port)]
+      [else (emit-expr a port)])))
 
 (define (emit-array-items items port)
   (for ([item items] [i (in-naturals)])
@@ -454,6 +542,11 @@
                     (display " = " port) (emit-expr (caddr p) port))]
         [(param-rest) (display "..." port) (display (ensure-dollar (cadr p)) port)]
         [(param-rest-type) (emit-type-hint (cadr p) port) (display " ..." port) (display (ensure-dollar (caddr p)) port)]
+        ;; PHP 8.0: constructor property promotion
+        [(param/promoted) (emit-modifiers (cadr p) port) (emit-type-hint (caddr p) port)
+                          (display " " port) (display (ensure-dollar (cadddr p)) port)
+                          (when (> (length p) 4)
+                            (display " = " port) (emit-expr (list-ref p 4) port))]
         [else (emit-expr p port)])))
 
 (define (emit-params params port)
@@ -474,10 +567,29 @@
     [(void) (display "void" port)]
     [(self) (display "self" port)]
     [(iterable) (display "iterable" port)]
+    [(mixed) (display "mixed" port)]
+    [(never) (display "never" port)]
+    [(null) (display "null" port)]
+    [(false) (display "false" port)]
+    [(true) (display "true" port)]
+    [(static) (display "static" port)]
+    [(parent) (display "parent" port)]
+    [(object) (display "object" port)]
     [else
-     (if (and (pair? type) (eq? (car type) '?))
-         (begin (display "?" port) (emit-type-hint (cadr type) port))
-         (emit-expr type port))]))
+     (cond
+       [(and (pair? type) (eq? (car type) '?))
+        (display "?" port) (emit-type-hint (cadr type) port)]
+       [(and (pair? type) (eq? (car type) 'union))
+        (for ([t (cdr type)] [i (in-naturals)])
+          (when (> i 0) (display "|" port))
+          (if (and (pair? t) (eq? (car t) 'intersection))
+              (begin (display "(" port) (emit-type-hint t port) (display ")" port))
+              (emit-type-hint t port)))]
+       [(and (pair? type) (eq? (car type) 'intersection))
+        (for ([t (cdr type)] [i (in-naturals)])
+          (when (> i 0) (display "&" port))
+          (emit-type-hint t port))]
+       [else (emit-expr type port)])]))
 
 ;; ============================================================
 ;; Class / Interface
@@ -584,6 +696,38 @@
              (begin (display (string-downcase (~a (car args))) port) (display " const " port)
                     (display (cadr args) port) (display " = " port)
                     (emit-expr (caddr args) port) (display ";\n" port)))]
+        ;; PHP 8.1: enum case
+        [(enum-case)
+         (display "case " port)
+         (display (cadr member) port)
+         (if (> (length member) 2)
+             (begin (display " = " port) (emit-expr (caddr member) port) (display ";\n" port))
+             (display ";\n" port))]
+        ;; PHP 7.4+: typed property
+        [(typed-property)
+         (emit-modifiers (cadr member) port)
+         (emit-type-hint (caddr member) port)
+         (display " " port)
+         (for ([v (cdddr member)] [i (in-naturals)])
+           (when (> i 0) (display ", " port))
+           (if (and (pair? v) (= (length v) 2) (not (memq (car v) '(var & array-access))))
+               (begin (emit-expr (car v) port) (display " = " port) (emit-expr (cadr v) port))
+               (emit-expr v port)))
+         (display ";\n" port)]
+        ;; PHP 8.3: typed class constant
+        [(typed-class-const)
+         (define targs (cdr member))
+         (if (= (length targs) 3)
+             ;; (typed-class-const type NAME value)
+             (begin (display "const " port)
+                    (emit-type-hint (car targs) port) (display " " port)
+                    (display (cadr targs) port) (display " = " port)
+                    (emit-expr (caddr targs) port) (display ";\n" port))
+             ;; (typed-class-const modifier type NAME value)
+             (begin (display (string-downcase (~a (car targs))) port) (display " const " port)
+                    (emit-type-hint (cadr targs) port) (display " " port)
+                    (display (caddr targs) port) (display " = " port)
+                    (emit-expr (cadddr targs) port) (display ";\n" port)))]
         [(use-trait)
          (display "use " port)
          (for ([t (cdr member)] [i (in-naturals)])
@@ -650,6 +794,7 @@
     [(concat=) ".="]
     [(&=) "&="] [(bw-or=) "|="] [(^=) "^="]
     [(<<=) "<<="] [(>>=) ">>="]
+    [(coalesce=) "??="]
     [else (~a op)]))
 
 (define (cast-type->php type)
